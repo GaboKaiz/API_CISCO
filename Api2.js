@@ -4,14 +4,11 @@ const bcrypt = require("bcrypt");
 const cors = require("cors");
 const app = express();
 
-// === Middleware ===
+// Middleware
 app.use(express.json());
 app.use(cors());
 
-// === Ruta raíz para mantener activo en Render (usar con UptimeRobot) ===
-app.get("/", (req, res) => res.send("🟢 API Node activa y funcionando"));
-
-// === Conexión a MongoDB Atlas ===
+// Conexión a MongoDB Atlas
 mongoose
   .connect(
     "mongodb+srv://Gabo78:ellanoteama789@cluster0.oli5hsa.mongodb.net/myapp?retryWrites=true&w=majority&appName=Cluster0"
@@ -19,23 +16,15 @@ mongoose
   .then(() => console.log("✅ Conectado a MongoDB Atlas"))
   .catch((err) => console.error("❌ Error de conexión:", err));
 
-// === Esquema para contador secuencial ===
+// ------------------ ESQUEMAS Y RUTAS ------------------
+// [Todo tu código sigue igual aquí…]
+
 const counterSchema = new mongoose.Schema({
   _id: { type: String, required: true },
   seq: { type: Number, default: 0 },
 });
 const Counter = mongoose.model("Counter", counterSchema);
 
-async function getNextSequence(name) {
-  const counter = await Counter.findOneAndUpdate(
-    { _id: name },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  );
-  return counter.seq;
-}
-
-// === Esquema de Usuario ===
 const userSchema = new mongoose.Schema({
   id_us: { type: Number, unique: true },
   name: { type: String, required: true },
@@ -44,7 +33,14 @@ const userSchema = new mongoose.Schema({
   datetime: { type: Date, default: Date.now },
   rol: { type: String, enum: ["ADMIN", "USER"], required: true },
 });
-
+async function getNextSequence(name) {
+  const counter = await Counter.findOneAndUpdate(
+    { _id: name },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.seq;
+}
 userSchema.pre("save", async function (next) {
   if (this.isNew) {
     this.id_us = await getNextSequence("userid");
@@ -54,10 +50,8 @@ userSchema.pre("save", async function (next) {
   }
   next();
 });
-
 const User = mongoose.model("User", userSchema);
 
-// === Esquema de Documento ===
 const documentSchema = new mongoose.Schema({
   id_document: { type: Number, unique: true },
   name_document: { type: String, required: true },
@@ -68,27 +62,20 @@ const documentSchema = new mongoose.Schema({
   },
   datetime: { type: Date, default: Date.now },
 });
-
 documentSchema.pre("save", async function (next) {
   if (this.isNew) {
     this.id_document = await getNextSequence("documentid");
   }
   next();
 });
-
 const Document = mongoose.model("Document", documentSchema);
 
-// === RUTAS ===
+// ----- Rutas de Users y Documents (todo igual que en tu código original) -----
 
-// ➕ Registrar Usuario
+// POST /api/users
 app.post("/api/users", async (req, res) => {
   try {
     const { name, nikuser, password, rol } = req.body;
-
-    if (!name || !nikuser || !password || !rol) {
-      return res.status(400).json({ error: "Faltan campos requeridos" });
-    }
-
     const user = new User({ name, nikuser, password, rol });
     await user.save();
     res.status(201).json({
@@ -96,32 +83,39 @@ app.post("/api/users", async (req, res) => {
       user: { id: user._id, id_us: user.id_us, name, nikuser, rol },
     });
   } catch (error) {
-    if (error.code === 11000 && error.keyPattern?.nikuser) {
+    if (error.code === 11000 && error.keyPattern.nikuser) {
       return res.status(400).json({ error: "nikuser ya en uso" });
     }
     res.status(400).json({ error: error.message });
   }
 });
 
-// 🔓 Login
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/login", async (req, res) => {
   try {
     const { nikuser, password } = req.body;
 
-    if (!nikuser || !password) {
-      return res.status(400).json({ error: "nikuser y password requeridos" });
-    }
-
+    // 1. Verifica si el usuario existe
     const user = await User.findOne({ nikuser });
     if (!user) {
-      return res.status(401).json({ error: "Usuario incorrecto" });
+      return res.status(401).json({ error: "Usuario incorrecto" }); // Mensaje específico
     }
 
+    // 2. Verifica si la contraseña es válida
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: "Contraseña incorrecta" });
+      return res.status(401).json({ error: "Contraseña incorrecta" }); // Mensaje específico
     }
 
+    // 3. Login exitoso
     return res.status(200).json({
       message: "Login exitoso",
       user: {
@@ -131,21 +125,15 @@ app.post("/api/login", async (req, res) => {
         nikuser: user.nikuser,
         rol: user.rol,
       },
-    });
+    }); // Sin redirección
   } catch (error) {
     return res.status(500).json({ error: "Error en el servidor" });
   }
 });
 
-// ➕ Subir Documento
 app.post("/api/documents", async (req, res) => {
   try {
     const { name_document, nikuser } = req.body;
-
-    if (!name_document || !nikuser) {
-      return res.status(400).json({ error: "Faltan campos requeridos" });
-    }
-
     const user = await User.findOne({ nikuser });
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
@@ -173,7 +161,6 @@ app.post("/api/documents", async (req, res) => {
   }
 });
 
-// 📃 Obtener todos los documentos
 app.get("/api/documents", async (req, res) => {
   try {
     const documents = await Document.find().populate(
@@ -186,22 +173,6 @@ app.get("/api/documents", async (req, res) => {
   }
 });
 
-// 📃 Obtener todos los usuarios (sin password)
-app.get("/api/users", async (req, res) => {
-  try {
-    const users = await User.find({}, "id_us name nikuser rol datetime");
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 🛑 Manejo global de errores no capturados
-app.use((err, req, res, next) => {
-  console.error("❌ Error inesperado:", err.stack);
-  res.status(500).json({ error: "Error interno del servidor" });
-});
-
-// === Iniciar servidor ===
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
