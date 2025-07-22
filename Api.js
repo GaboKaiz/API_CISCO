@@ -8,24 +8,23 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Conexión a MongoDB
+// Conexión a MongoDB Atlas
 mongoose
-  .connect("mongodb://localhost:27017/myapp", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("Conectado a MongoDB"))
-  .catch((err) => console.error("Error de conexión:", err));
+  .connect(
+    "mongodb+srv://Gabo78:<db_password>@cluster0.oli5hsa.mongodb.net/myapp?retryWrites=true&w=majority&appName=Cluster0"
+  )
+  .then(() => console.log("✅ Conectado a MongoDB Atlas"))
+  .catch((err) => console.error("❌ Error de conexión:", err));
 
-// Esquema para el contador de ID
+// ------------------ ESQUEMAS Y RUTAS ------------------
+// [Todo tu código sigue igual aquí…]
+
 const counterSchema = new mongoose.Schema({
   _id: { type: String, required: true },
   seq: { type: Number, default: 0 },
 });
-
 const Counter = mongoose.model("Counter", counterSchema);
 
-// Esquema de User
 const userSchema = new mongoose.Schema({
   id_us: { type: Number, unique: true },
   name: { type: String, required: true },
@@ -34,8 +33,6 @@ const userSchema = new mongoose.Schema({
   datetime: { type: Date, default: Date.now },
   rol: { type: String, enum: ["ADMIN", "USER"], required: true },
 });
-
-// Función para obtener el siguiente ID
 async function getNextSequence(name) {
   const counter = await Counter.findOneAndUpdate(
     { _id: name },
@@ -44,8 +41,6 @@ async function getNextSequence(name) {
   );
   return counter.seq;
 }
-
-// Middleware para hashear la contraseña y generar id_us
 userSchema.pre("save", async function (next) {
   if (this.isNew) {
     this.id_us = await getNextSequence("userid");
@@ -55,10 +50,8 @@ userSchema.pre("save", async function (next) {
   }
   next();
 });
-
 const User = mongoose.model("User", userSchema);
 
-// Esquema de Document
 const documentSchema = new mongoose.Schema({
   id_document: { type: Number, unique: true },
   name_document: { type: String, required: true },
@@ -69,18 +62,17 @@ const documentSchema = new mongoose.Schema({
   },
   datetime: { type: Date, default: Date.now },
 });
-
-// Middleware para generar id_document
 documentSchema.pre("save", async function (next) {
   if (this.isNew) {
     this.id_document = await getNextSequence("documentid");
   }
   next();
 });
-
 const Document = mongoose.model("Document", documentSchema);
 
-// Rutas para Users
+// ----- Rutas de Users y Documents (todo igual que en tu código original) -----
+
+// POST /api/users
 app.post("/api/users", async (req, res) => {
   try {
     const { name, nikuser, password, rol } = req.body;
@@ -133,7 +125,6 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Rutas para Documents
 app.post("/api/documents", async (req, res) => {
   try {
     const { name_document, nikuser } = req.body;
@@ -143,7 +134,6 @@ app.post("/api/documents", async (req, res) => {
     const document = new Document({ name_document, id_user: user._id });
     await document.save();
 
-    // Populate user data in the response
     const populatedDocument = await Document.findById(document._id).populate(
       "id_user",
       "name id_us nikuser"
@@ -179,4 +169,4 @@ app.get("/api/documents", async (req, res) => {
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
