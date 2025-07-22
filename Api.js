@@ -11,7 +11,7 @@ app.use(cors());
 // Conexión a MongoDB Atlas
 mongoose
   .connect(
-    "mongodb+srv://Gabo78:<ellanoteama789>@cluster0.oli5hsa.mongodb.net/myapp?retryWrites=true&w=majority&appName=Cluster0"
+    "mongodb+srv://Gabo78:ellanoteama789@cluster0.oli5hsa.mongodb.net/myapp?retryWrites=true&w=majority&appName=Cluster0"
   )
   .then(() => console.log("✅ Conectado a MongoDB Atlas"))
   .catch((err) => console.error("❌ Error de conexión:", err));
