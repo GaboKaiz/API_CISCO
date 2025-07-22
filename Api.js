@@ -102,14 +102,21 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   try {
     const { nikuser, password } = req.body;
+
+    // 1. Verifica si el usuario existe
     const user = await User.findOne({ nikuser });
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user) {
+      return res.status(401).json({ error: "Usuario incorrecto" }); // Mensaje específico
+    }
 
+    // 2. Verifica si la contraseña es válida
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(401).json({ error: "Contraseña incorrecta" });
+    if (!isMatch) {
+      return res.status(401).json({ error: "Contraseña incorrecta" }); // Mensaje específico
+    }
 
-    res.json({
+    // 3. Login exitoso
+    return res.status(200).json({
       message: "Login exitoso",
       user: {
         id: user._id,
@@ -118,10 +125,9 @@ app.post("/api/login", async (req, res) => {
         nikuser: user.nikuser,
         rol: user.rol,
       },
-      redirectUrl: "/dashboard",
-    });
+    }); // Sin redirección
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: "Error en el servidor" });
   }
 });
 
